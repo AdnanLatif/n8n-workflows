@@ -1,0 +1,202 @@
+{
+  "name": "Email Draft AI Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyHour"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [-340, 0],
+      "id": "56124e5b-80d0-4e53-903f-bd8f4b2dffcc",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "__REDACTED__",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputText": "=Classify this email:\\n\\nSubject: {{ $json.Subject }}\\n\\nBody: {{$json[\"snippet\"]}}\\n\\nRespond with: HIGH_PRIORITY, NORMAL_PRIORITY, or NOT_SPONSORSHIP",
+        "categories": {
+          "categories": [
+            {
+              "category": "Sponsorship",
+              "description": "This node uses natural language processing to analyze incoming email content and classify whether the message relates to sponsorship opportunities."
+            },
+            {
+              "category": "Notifications",
+              "description": "High priority emails often include words like urgent, notification, or similar."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textClassifier",
+      "typeVersion": 1,
+      "position": [-120, 0],
+      "id": "08534172-c4d3-4c8f-b026-fb496332d389",
+      "name": "Text Classifier"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [-220, 260],
+      "id": "a5f0a5c3-10fd-492c-9f9b-16f166ab7aa2",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "__REDACTED__",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an assistant of Software Engineer Adnan Latif.\nYour job is to respond to the email below.\n\nCraft a full reply including a subject line, greeting, body, and closing.\nUse the original subject from the email to create a reply subject like \"Re: {{ $json.Subject }}\".\n\n---\n\n**Email Subject:** {{ $json.Subject }}\n**Email Body:** {{ $json.textPlain || $json.textHtml || $json.snippet }}",
+              "role": "system"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [260, -80],
+      "id": "b6ba6de9-a3e3-436b-b84a-2629b29841b5",
+      "name": "High Priority",
+      "credentials": {
+        "openAiApi": {
+          "id": "__REDACTED__",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $json.message.content.subject }}",
+        "message": "={{ $json.message.content.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [620, -80],
+      "id": "c73cca4d-abc6-4b2e-b369-4b8997a6c8ef",
+      "name": "Save Draft - High Priority",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "__REDACTED__",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are an assistant of Software Engineer Adnan Latif.\nYour job is to respond to the email below.\n\nCraft a full reply to a high-priority sponsorship email.\nInclude a subject line, greeting, body, and closing.\nUse the original subject as \"Re: {{ $json.Subject }}\"\nSign off as a representative of Tkxel.\n\n---\n\n**Email Subject:** {{ $json.Subject }}\n**Email Body:** {{ $json.textPlain || $json.textHtml || $json.snippet }}",
+              "role": "system"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [300, 180],
+      "id": "98679d6b-7a8c-4422-8127-5cc3c9a7f596",
+      "name": "Sponsorship Reply",
+      "credentials": {
+        "openAiApi": {
+          "id": "__REDACTED__",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $json.message.content.reply.subject }}",
+        "message": "={{ $json.message.content.reply.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [660, 180],
+      "id": "c474c159-8b9d-47bc-bd77-d62a8cc1749c",
+      "name": "Save Draft - Sponsorship",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "__REDACTED__",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [[{ "node": "Text Classifier", "type": "main", "index": 0 }]]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [[{ "node": "Text Classifier", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "Text Classifier": {
+      "main": [
+        [{ "node": "Sponsorship Reply", "type": "main", "index": 0 }],
+        [{ "node": "High Priority", "type": "main", "index": 0 }]
+      ]
+    },
+    "High Priority": {
+      "main": [[{ "node": "Save Draft - High Priority", "type": "main", "index": 0 }]]
+    },
+    "Sponsorship Reply": {
+      "main": [[{ "node": "Save Draft - Sponsorship", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "v1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "email-draft-ai-agent",
+  "tags": []
+}
