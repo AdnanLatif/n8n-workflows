@@ -1,0 +1,202 @@
+{
+  "name": "Inventory Management AI System",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [-148, -40],
+      "id": "87843f68-779e-4ea7-94fd-8c331cfb5c64",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [-340, 180],
+      "id": "1d7519cf-3059-4190-8bda-df07d8a83d5b",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "<REDACTED-OPENAI-CREDENTIAL-ID>",
+          "name": "<REDACTED-OPENAI-CREDENTIAL-NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [-160, 180],
+      "id": "3b25a03e-ed7a-4bbd-93ea-5baa7b8d878a",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "<YOUR-GOOGLE-SHEET-ID>",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "<YOUR-SHEET-NAME>",
+          "mode": "list"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [240, 180],
+      "id": "65766bf9-b1dc-456c-83df-94f10895951e",
+      "name": "Read Inventory",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<REDACTED-GOOGLE-CREDENTIAL-ID>",
+          "name": "<REDACTED-GOOGLE-CREDENTIAL-NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "<YOUR-GOOGLE-SHEET-ID>",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "<YOUR-SHEET-NAME>",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Item Name": "={{ $fromAI('Item_Name__using_to_match_', ``, 'string') }}",
+            "Quantity in Stock": "={{ $fromAI('Quantity_in_Stock', ``, 'string') }}"
+          },
+          "matchingColumns": ["Item Name"],
+          "schema": [
+            {
+              "id": "Item Name",
+              "displayName": "Item Name",
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "display": true
+            },
+            {
+              "id": "Quantity in Stock",
+              "displayName": "Quantity in Stock",
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "display": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.5,
+      "position": [20, 180],
+      "id": "d5903b18-8e7b-4ae1-b7c0-c58f3833ac24",
+      "name": "Update Inventory",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "<REDACTED-GOOGLE-CREDENTIAL-ID>",
+          "name": "<REDACTED-GOOGLE-CREDENTIAL-NAME>"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "public": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [-400, -40],
+      "id": "5c159460-9fe1-4a3c-83cb-36c6edab11f6",
+      "name": "When chat message received",
+      "webhookId": "<REDACTED-WEBHOOK-ID>"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Inventory": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Inventory": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "5873be81-cb7a-4947-bc78-49a468b0e4c5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "<REDACTED-INSTANCE-ID>"
+  },
+  "id": "dNpLynfo4ZbUarmG",
+  "tags": []
+}
