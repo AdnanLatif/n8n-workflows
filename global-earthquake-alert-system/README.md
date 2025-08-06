@@ -8,7 +8,7 @@ Instead of constantly checking external apps or websites, this workflow automate
 
 ---
 
-![Cover Image](./cover.png)
+![Cover Image](./cover.PNG)
 
 ---
 
@@ -43,8 +43,8 @@ This project uses the open and reliable earthquake data provided by the [USGS Ea
 
 ---
 
-## 🤖 Author
+## Author
 
 Built by [Adnan Latif](https://github.com/AdnanLatif)  
-🧠 Follow my AI + automation series on [Medium](https://medium.com/@alatif.bwp)  
-💼 Connect on [LinkedIn](https://www.linkedin.com/in/adlatif)
+Follow my AI + automation series on [Medium](https://medium.com/@alatif.bwp)  
+Connect on [LinkedIn](https://www.linkedin.com/in/adlatif)
