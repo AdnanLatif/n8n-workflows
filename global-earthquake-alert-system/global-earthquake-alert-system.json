@@ -1,0 +1,161 @@
+{
+  "name": "Global Earthquake Alert System",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, -96],
+      "id": "98b09c00-6b3b-4ae6-9416-ffdd1433cf36",
+      "name": "Every 10 Minutes"
+    },
+    {
+      "parameters": {
+        "url": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [224, -96],
+      "id": "51ad4872-b840-49f6-bcd5-b1e0ba23b876",
+      "name": "Fetch Earthquakes"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items[0].json.features.map(feature => ({ json: feature }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [448, -96],
+      "id": "024cadb6-b771-48cc-a2cf-175f5f7acb4a",
+      "name": "Split Features"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "mag-check",
+              "leftValue": "={{ $json.properties.mag }}",
+              "rightValue": 1.5,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [672, -96],
+      "id": "46278260-702a-450a-9471-1c2f5c87bad6",
+      "name": "Magnitude > 1.5"
+    },
+    {
+      "parameters": {
+        "jsCode": "let combined = items.map(item => {\n  const props = item.json.properties;\n  const time = new Date(props.time).toUTCString();\n  return `<strong>Location:</strong> ${props.place}<br><strong>Magnitude:</strong> ${props.mag}<br><strong>Time (UTC):</strong> ${time}<br><a href='${props.url}'>More Info</a>`;\n}).join('<br><hr><br>');\nreturn [{ json: { subject: `Earthquakes Detected: ${items.length}`, message: combined }}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [896, -96],
+      "id": "f6a3c497-b925-451d-ba9c-21e924230075",
+      "name": "Format Message"
+    },
+    {
+      "parameters": {
+        "sendTo": "youremail@example.com",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1120, -96],
+      "id": "a7e3f7aa-4935-472d-b72d-407502086403",
+      "name": "Send Email"
+    }
+  ],
+  "connections": {
+    "Every 10 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Fetch Earthquakes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Earthquakes": {
+      "main": [
+        [
+          {
+            "node": "Split Features",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Features": {
+      "main": [
+        [
+          {
+            "node": "Magnitude > 1.5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Magnitude > 1.5": {
+      "main": [
+        [
+          {
+            "node": "Format Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Message": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "cleaned-version",
+  "id": "earthquake-alert-workflow",
+  "tags": []
+}

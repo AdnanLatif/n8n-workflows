@@ -6,9 +6,11 @@ A collection of real-world automation workflows built using [n8n](https://n8n.io
 
 ## 📂 Workflows
 
-| Name                     | Description                                         |
-|--------------------------|-----------------------------------------------------|
-| [Email Draft AI Agent](./email-draft-ai-agent) | Auto-classifies and drafts replies to Gmail emails using GPT |
+| Workflow                                                           | Description                                                                                                                     |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| [Email Draft AI Agent](./email-draft-ai-agent)                     | Auto-classifies Gmail emails and drafts intelligent replies using OpenAI's GPT model.                                           |
+| [Inventory Management AI System](./inventory-management-ai-system) | A conversational inventory system powered by GPT and Google Sheets. It reads and updates stock levels through a chat interface. |
+| [Global Earthquake Alert System](./global-earthquake-alert-system) | Monitors global seismic activity and sends email alerts for earthquakes above a defined magnitude threshold.                    |
 
 ---
 
