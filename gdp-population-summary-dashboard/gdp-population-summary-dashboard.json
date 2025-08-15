@@ -1,0 +1,689 @@
+{
+  "name": "GDP, Population Summary Dashboard Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        368
+      ],
+      "id": "6ebeab1a-a8a7-4779-9f98-7ed441188376",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL?format=json&per_page=20000&date=2022",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        80
+      ],
+      "id": "5e1bafbd-86f3-446c-bd42-4fdaff37ebbe",
+      "name": "Population HTTP Request",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "url": "https://ourworldindata.org/grapher/life-expectancy.csv?useColumnShortNames=true",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        656
+      ],
+      "id": "b4a78af7-2731-4715-abf6-2d3a55593c6f",
+      "name": "HDI HTTP Request"
+    },
+    {
+      "parameters": {
+        "url": "https://api.worldbank.org/v2/country/all/indicator/NY.GDP.MKTP.CD?format=json&per_page=20000&date=2022",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        272
+      ],
+      "id": "29855109-aa97-4a84-a093-82baa174ce42",
+      "name": "GDP HTTP Request"
+    },
+    {
+      "parameters": {
+        "url": "https://raw.githubusercontent.com/owid/co2-data/master/owid-co2-data.csv",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        464
+      ],
+      "id": "360f3193-0235-45e1-8555-e5a5efa3d90a",
+      "name": "CO₂ HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Try to locate the actual array in the input\nlet data;\n\n// Case 1: HTTP node returned array directly\nif (Array.isArray(items[1].json)) {\n  data = items[1].json;\n}\n\n// Case 2: Array is inside \"body\" or \"data\"\nelse if (Array.isArray(items[1].json.body)) {\n  data = items[1].json.body;\n}\nelse if (Array.isArray(items[1].json.data)) {\n  data = items[1].json.data;\n}\n\n// If still not found\nif (!Array.isArray(data) || data.length === 0) {\n  throw new Error(\"No GDP data array found in input.\");\n}\n\nreturn data.map(entry => {\n  const iso = entry.countryiso3code?.trim() || null;\n  const country = entry.country?.value?.trim() || null;\n  const year = Number(entry.date) || null;\n  const gdp = entry.value != null ? Number(entry.value) : null;\n\n  return {\n    json: {\n      iso3: iso,\n      country,\n      year,\n      gdp,\n      mergeKey: (iso && year) ? `${iso}_${year}` : null\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        272
+      ],
+      "id": "9dea26e0-b3b5-43ab-85d8-caf0df6c9761",
+      "name": "GDP Refined Code"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Try to locate the actual array in the input\nlet data;\n\n// Case 1: HTTP node returned array directly\nif (Array.isArray(items[1].json)) {\n  data = items[1].json;\n}\n\n// Case 2: Array is inside \"body\" or \"data\"\nelse if (Array.isArray(items[1].json.body)) {\n  data = items[1].json.body;\n}\nelse if (Array.isArray(items[1].json.data)) {\n  data = items[1].json.data;\n}\n\n// If still not found\nif (!Array.isArray(data) || data.length === 0) {\n  throw new Error(\"No population data array found in input.\");\n}\n\nreturn data.map(entry => {\n  const iso = entry.countryiso3code?.trim() || null;\n  const country = entry.country?.value?.trim() || null;\n  const year = Number(entry.date) || null;\n  const population = entry.value != null ? Number(entry.value) : null;\n\n  return {\n    json: {\n      iso3: iso,\n      country,\n      year,\n      population,\n      mergeKey: (iso && year) ? `${iso}_${year}` : null\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        80
+      ],
+      "id": "af240e91-0a02-40d3-9184-930240621378",
+      "name": "Population Refined",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "fieldsToMatchString": "iso3",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        672,
+        176
+      ],
+      "id": "dd96c77b-ea1c-4eac-b700-add3e3b84fe2",
+      "name": "Merge Data from Different sources"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all merged items\nreturn $input.all().map(item => item.json);\n\n// // Filter: only keep rows with a valid year and country code\n// const filtered = merged.filter(r =>\n//     r.year &&\n//     r.iso_code &&\n//     !isNaN(Number(r.year))\n// );\n// console.log('filtered', filtered)\n// // Sort by country code, then year (latest first)\n// filtered.sort((a, b) => {\n//     if (a.iso_code === b.iso_code) {\n//         return Number(b.year) - Number(a.year);\n//     }\n//     return a.iso_code.localeCompare(b.iso_code);\n// });\n\n// // Keep only the latest per country\n// const latestPerCountry = [];\n// const seen = new Set();\n\n// for (const row of filtered) {\n//     if (!seen.has(row.iso_code)) {\n//         seen.add(row.iso_code);\n\n//         // Ensure numeric fields are converted from strings\n//         const cleanRow = {};\n//         for (const [key, value] of Object.entries(row)) {\n//             if (value === null || value === \"\") {\n//                 cleanRow[key] = null;\n//             } else if (!isNaN(value) && value !== true && value !== false) {\n//                 cleanRow[key] = Number(value);\n//             } else {\n//                 cleanRow[key] = value;\n//             }\n//         }\n\n//         latestPerCountry.push(cleanRow);\n//     }\n// }\n\n// // Output in n8n format\n// return latestPerCountry.map(r => ({ json: r }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        176
+      ],
+      "id": "74026831-d9bb-492c-87d4-545f1c37c6c8",
+      "name": "Merged Code",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1928,
+        592
+      ],
+      "id": "5f927de9-b475-465b-b203-3d23271fd63d",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "sendTo": "adnan.latif@camp1.tkxel.com",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.html }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2720,
+        368
+      ],
+      "id": "53c83e75-8a24-4631-ad73-f6b2781adee1",
+      "name": "Send a message",
+      "webhookId": "1004abba-39d3-469d-8ba4-7728a9cccdf3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "i7N66VSXJu8M6s4i",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "advanced": true,
+        "mergeByFields": {
+          "values": [
+            {
+              "field1": "country",
+              "field2": "country"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        672,
+        560
+      ],
+      "id": "ddb5cc8a-a563-45ff-adff-a0b1d2e6a12a",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const currentYear = new Date().getFullYear();\nconst cutoffYear = currentYear - 5; // last 5 years including current\n\n// Get CSV string from previous node\nconst csvString = items[0]?.json?.data;\nif (!csvString) {\n  throw new Error('No CSV data found in previous node output.');\n}\n\n// Split into lines safely (handles both LF and CRLF)\nconst lines = csvString.split(/\\r?\\n/);\n\n// Extract header row\nconst headers = lines[0].split(\",\").map(h => h.trim());\n\n// Temporary storage for all filtered rows\nconst filteredRows = [];\n\n// Parse all data rows and filter by year\nfor (let i = 1; i < lines.length; i++) {\n  const line = lines[i].trim();\n  if (!line) continue; // skip empty lines\n\n  const values = line.split(\",\");\n  const obj = {};\n\n  headers.forEach((header, index) => {\n    obj[header] = values[index] !== undefined && values[index] !== \"\" ? values[index] : null;\n  });\n\n  const yearNum = Number(obj.year);\n  if (!isNaN(yearNum) && yearNum >= cutoffYear && yearNum <= currentYear) {\n    filteredRows.push(obj);\n  }\n}\n\n// Group filtered rows by country\nconst groupedByCountry = {};\n\nfilteredRows.forEach(row => {\n  const country = row.country || 'Unknown';\n  if (!groupedByCountry[country]) {\n    groupedByCountry[country] = [];\n  }\n  groupedByCountry[country].push(row);\n});\n\n// Prepare output format: array with one item per country, holding all records\nconst output = Object.entries(groupedByCountry).map(([country, records]) => ({\n  json: {\n    country,\n    records,\n  }\n}));\n\nreturn output;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        464
+      ],
+      "id": "6b6a067b-34e8-4384-80cb-87965f027b5b",
+      "name": "CO₂ CSV to JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "const currentYear = new Date().getFullYear();\nconst cutoffYear = currentYear - 5; // last 5 years including current\n\n// Get CSV string from previous node\nconst csvString = items[0]?.json?.data;\nif (!csvString) {\n  throw new Error('No CSV data found in previous node output.');\n}\n\n// Split into lines safely (handles both LF and CRLF)\nconst lines = csvString.split(/\\r?\\n/);\n\n// Extract header row\nconst headers = lines[0].split(\",\").map(h => h.trim());\n\n// Temporary storage for all filtered rows\nconst filteredRows = [];\n\n// Parse all data rows and filter by year\nfor (let i = 1; i < lines.length; i++) {\n  const line = lines[i].trim();\n  if (!line) continue; // skip empty lines\n\n  const values = line.split(\",\");\n  const obj = {};\n\n  headers.forEach((header, index) => {\n    obj[header] = values[index] !== undefined && values[index] !== \"\" ? values[index] : null;\n  });\n\n  const yearNum = Number(obj.Year);\n  if (!isNaN(yearNum) && yearNum >= cutoffYear && yearNum <= currentYear) {\n    filteredRows.push(obj);\n  }\n}\n\n// Group filtered rows by country\nconst groupedByCountry = {};\n\nfilteredRows.forEach(row => {\n  const country = row.Entity || 'Unknown';\n  if (!groupedByCountry[country]) {\n    groupedByCountry[country] = [];\n  }\n  groupedByCountry[country].push(row);\n});\n\n// Prepare output format: array with one item per country, holding all records\nconst output = Object.entries(groupedByCountry).map(([country, records]) => ({\n  json: {\n    country,\n    records,\n  }\n}));\n\nreturn output;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        656
+      ],
+      "id": "abc31454-8366-4133-93ce-0e17ad40e3ac",
+      "name": "HDI CSV to JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "function transformRecord(d) {\n  return {\n    country: d.Entity || null,\n    iso3: d.Code || null,\n    year: d.Year ? Number(d.Year) : null,\n    life_expectancy: d.life_expectancy_0 ? Number(d.life_expectancy_0) : null,\n    total_ghg: d.total_ghg ? Number(d.total_ghg) : null,\n    total_ghg_excl_lucf: d.total_ghg_excluding_lucf ? Number(d.total_ghg_excluding_lucf) : null,\n    ghg_temp_share: d.share_of_temperature_change_from_ghg ? Number(d.share_of_temperature_change_from_ghg) : null,\n    temp_from_co2: d.temperature_change_from_co2 ? Number(d.temperature_change_from_co2) : null,\n    temp_from_ch4: d.temperature_change_from_ch4 ? Number(d.temperature_change_from_ch4) : null,\n    temp_from_n2o: d.temperature_change_from_n2o ? Number(d.temperature_change_from_n2o) : null,\n    share_global_oil_co2: d.share_global_oil_co2 ? Number(d.share_global_oil_co2) : null,\n    share_global_other_co2: d.share_global_other_co2 ? Number(d.share_global_other_co2) : null,\n    trade_co2: d.trade_co2 ? Number(d.trade_co2) : null,\n    trade_co2_share: d.trade_co2_share ? Number(d.trade_co2_share) : null\n  };\n}\n\nconst transformed = items.map(item => {\n  if (Array.isArray(item.json.records)) {\n    return {\n      json: {\n        ...item.json,\n        records: item.json.records.map(transformRecord)\n      }\n    };\n  }\n  return { json: transformRecord(item.json) };\n});\n\nreturn transformed;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        560
+      ],
+      "id": "a934679a-8c7f-4a08-9fd3-29140ec5a220",
+      "name": "Arranged Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.all().map(i => i.json);\n\nconst jsonString = JSON.stringify(data, null, 2);\n\nreturn [{ json: { text: jsonString } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        560
+      ],
+      "id": "4b93c876-99f6-4e38-bc7f-04a0f7a310b9",
+      "name": "Data for AI"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.all().map(i => i.json);\n\nconst jsonString = JSON.stringify(data, null, 2);\n\nreturn [{ json: { text: jsonString } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        176
+      ],
+      "id": "ebb94b44-4931-487b-a413-54df97cec28d",
+      "name": "Data For AI"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1344,
+        368
+      ],
+      "id": "05ab2d7a-27a8-4693-88b7-159b2d611aef",
+      "name": "DataForAI"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allData = items.map(item => item.json);\nreturn [{ json: { allData }  }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        368
+      ],
+      "id": "76105eee-f99a-4d9d-8c79-4a586de18ade",
+      "name": "Combine the Inputs for Better Stats"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a data summarizer. From the provided JSON, extract only the most relevant information for analysis.\n\nInput data: {{ $json.allData[0].text }}\n\nRules:\n1. Keep only the years 2020, 2021, 2022, and 2023.\n2. Include only these columns: Region, Country, Population, GDP, Life expectancy, Total GHG emissions.\n3. Limit to:\n   - The world total\n   - The top 10 countries by GDP (latest year available)\n   - The top 10 countries by population (latest year available)\n   (If overlaps occur, include unique countries only)\n4. Format output as STRICT JSON with keys:\n{\n  \"population_gdp\": {\n    \"2020\": [...],\n    \"2021\": [...],\n    \"2022\": [...],\n    \"2023\": [...]\n  },\n  \"health_environment\": {\n    \"2020\": [...],\n    \"2021\": [...],\n    \"2022\": [...],\n    \"2023\": [...]\n  }\n}\n5. For each entry in both sections:\n   {\n     \"region\": string,\n     \"country\": string,\n     \"population\": number | null,\n     \"gdp_usd\": number | null,\n     \"life_expectancy\": number | null,\n     \"total_ghg\": number | null\n   }\n6. Use null if data is missing.\n7. Keep numbers clean with no formatting (e.g., $102.3 trillion instead of 102300000000).\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        1792,
+        368
+      ],
+      "id": "3e172d3f-93e6-4eab-a58b-f88e425d8c93",
+      "name": "Data Compressor / Preparer",
+      "notes": "You are a data analyst. Convert the provided dataset (JSON array with regions/countries, population, GDP, life expectancy, CO₂ emissions, and other environmental indicators) into a **concise, plain-text briefing** for internal use.\n\nOutput STRICT JSON only in the following format:\n{\n  \"notes\": string\n}\n\n### NOTES REQUIREMENTS:\n- Plain text only, no HTML or Markdown.\n- Bullet-point style with short, sharp sentences.\n- Focus on **key insights** from the data across all years (e.g., 2020–2023).\n- Highlight:\n  - Top global trends in GDP, population, and environmental indicators.\n  - Year-over-year (YoY) changes and biggest percentage changes.\n  - Top 3 gainers and losers for each key metric (GDP, Population, Life Expectancy, CO₂ emissions, GHG emissions).\n  - Outliers or anomalies in the data.\n- If a metric is missing for some years, acknowledge it.\n- Keep it under ~300 words total.\n- Use thousands separators and currency symbols where applicable.\n\n### STRUCTURE:\n1. **Overall Trend Summary** – 2–3 bullets.\n2. **Top Changes (YoY)** – 4–6 bullets.\n3. **Top 3 Movers** – list for GDP, Population, Life Expectancy, CO₂ emissions.\n4. **Health & Environmental Insights** – 2–4 bullets.\n5. **Data Gaps & Limitations** – 1–2 bullets.\n\n### RULES:\n- No sign-offs.\n- Avoid generic phrases; be specific with numbers and time ranges.\n- Mention the earliest and latest year in the dataset in the first bullet.\n\nInput data:\n{{ $json.allData[0].text }}\n"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Data Compressor / Preparer').item.json.output }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2280,
+        592
+      ],
+      "id": "127020f7-737d-4780-89eb-ae2b4ddf40ee",
+      "name": "Simple Memory1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an email formatter. Convert the provided data (JSON array with regions/countries, population, GDP, health, and environmental indicators) into a concise, executive-friendly email.\n\nReturn ONLY valid JSON — no code blocks, no markdown, no extra text — with exactly these keys:\n{\n  \"subject\": string,\n  \"body\": string\n}\n\nRules for \"subject\":\n- Crisp 6–10 words summarizing the insight.\n- Include the year range (lowest and highest year in the data).\n\nRules for \"body\":\n- Full HTML fragment (no <html> or <body> tag).\n- Mobile-friendly, single-column layout.\n- Inline CSS only.\n- Sections:\n  1. Short intro paragraph.\n  2. Key takeaways (3–7 bullet points).\n  3. Population & GDP table (year-wise: 2020–2023).\n  4. Health & Environmental indicators table (year-wise).\n  5. Brief concluding summary.\n- Omit missing/null values.\n- Use thousands separators and currency symbols.\n- Keep under ~20 KB.\n\nFormatting requirements:\n- Tables must be simple <table> with inline styles.\n- Avoid images, scripts, and links.\n- No sign-offs like “Best regards”.\n\nReturn exactly this JSON structure and nothing else.\n\nInput data: {{ $json.output }}\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2144,
+        368
+      ],
+      "id": "07973314-e83e-4768-bb88-a87bc28d4560",
+      "name": "Email Formatter"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1800,
+        592
+      ],
+      "id": "42d45281-8b66-480d-b99e-7ae3d8b95318",
+      "name": "OpenAI Chat Model for Parser",
+      "credentials": {
+        "openAiApi": {
+          "id": "CKCg7h6DRDqlGcdo",
+          "name": "OpenAi account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2152,
+        592
+      ],
+      "id": "2cc5151d-ab83-4864-8dda-f5ba3ee4c668",
+      "name": "OpenAI Chat Model for Email Formatter",
+      "credentials": {
+        "openAiApi": {
+          "id": "CKCg7h6DRDqlGcdo",
+          "name": "OpenAi account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the OpenAI node output (a JSON string) into an object\nconst parsed = JSON.parse(items[0].json.output);\n\n// Return subject and HTML separately for the Email node\nreturn [\n  {\n    json: {\n      subject: parsed.subject,\n      html: parsed.body\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2496,
+        368
+      ],
+      "id": "fe6d87d5-2910-427e-8043-77d254e3b078",
+      "name": "Code for separate the keys"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "CO₂ HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Population HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GDP HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HDI HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Population HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Population Refined",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CO₂ HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "CO₂ CSV to JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GDP HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "GDP Refined Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HDI HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "HDI CSV to JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Population Refined": {
+      "main": [
+        [
+          {
+            "node": "Merge Data from Different sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GDP Refined Code": {
+      "main": [
+        [
+          {
+            "node": "Merge Data from Different sources",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Data from Different sources": {
+      "main": [
+        [
+          {
+            "node": "Merged Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merged Code": {
+      "main": [
+        [
+          {
+            "node": "Data For AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Data Compressor / Preparer",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Arranged Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CO₂ CSV to JSON": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HDI CSV to JSON": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Arranged Data": {
+      "main": [
+        [
+          {
+            "node": "Data for AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data for AI": {
+      "main": [
+        [
+          {
+            "node": "DataForAI",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Data For AI": {
+      "main": [
+        [
+          {
+            "node": "DataForAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DataForAI": {
+      "main": [
+        [
+          {
+            "node": "Combine the Inputs for Better Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine the Inputs for Better Stats": {
+      "main": [
+        [
+          {
+            "node": "Data Compressor / Preparer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Compressor / Preparer": {
+      "main": [
+        [
+          {
+            "node": "Email Formatter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "Email Formatter",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Formatter": {
+      "main": [
+        [
+          {
+            "node": "Code for separate the keys",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model for Parser": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Data Compressor / Preparer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model for Email Formatter": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Email Formatter",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code for separate the keys": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "fd2000aa-c57e-4d30-8769-014e8d412d62",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ff35731b52cd15fdcae9fd066dcce7a0b634b102d78c3c6b61c2e938295a1f90"
+  },
+  "id": "H13x2Fz300GHgQrG",
+  "tags": []
+}
